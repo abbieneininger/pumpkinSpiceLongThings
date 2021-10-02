@@ -27,6 +27,6 @@ net = torch.nn.Sequential(
     ),
     torch.nn.Conv2d(in_channels= 8, out_channels=out_channels, kernel_size=1, padding=0, bias=True))
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0")
 net = net.to(device)
 summary(net, (1, 512, 512))

@@ -3,3 +3,4 @@ imagecodecs
 numpy
 pillow
 imgaug
+tensorboard

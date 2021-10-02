@@ -6,7 +6,6 @@ from imgaug import augmenters as iaa
 import random
 import torch
 
-
 class TrainDataset:
     def __init__(self, train_dir, gt_dir):
         self.train_dir = train_dir  # the directory with all the training samples
