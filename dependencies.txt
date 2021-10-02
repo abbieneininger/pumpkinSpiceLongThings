@@ -1,2 +1,5 @@
 gunpowder
 imagecodecs
+numpy
+pillow
+imgaug
