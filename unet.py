@@ -4,39 +4,13 @@ import torch
 import torch.nn as nn
 from torchsummary import summary
 
-prediction_type = "two_class" # same as fg/bg
-#prediction_type = "affinities"
-#prediction_type = "sdt"
-#prediction_type = "three_class"
-#prediction_type = "metric_learning"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-if prediction_type == "two_class":
-    out_channels = 1
-    activation = nn.Sigmoid()
-    loss_fn = torch.nn.BCEWithLogitsLoss()
-    dtype = torch.FloatTensor
-elif prediction_type == "affinities":
-    out_channels = 1
-    activation = nn.Sigmoid()
-    loss_fn = torch.nn.BCEWithLogitsLoss()
-    dtype = torch.FloatTensor
-elif prediction_type == "sdt":
-    out_channels = 1
-    activation = nn.Sigmoid()
-    loss_fn = torch.nn.BCEWithLogitsLoss()
-    dtype = torch.FloatTensor
-elif prediction_type == "three_class":
-    out_channels = 3
-    activation = nn.Sigmoid()
-    #loss_fn = torch.nn.BCEWithLogitsLoss()
-    dtype = torch.FloatTensor
-elif prediction_type == "metric_learning":
-    out_channels = 5
-    activation = None
-    loss_fn = DiscriminativeLoss(device)
-    dtype = torch.FloatTensor
-else:
-    raise RuntimeError("invalid prediction type")
+
+out_channels = 1
+activation = nn.Sigmoid()
+loss_fn = torch.nn.BCEWithLogitsLoss()
+dtype = torch.FloatTensor
+
 torch.manual_seed(42)
 
 d_factors = [(2,2),(2,2),(2,2),(2,2)]
@@ -55,4 +29,4 @@ net = torch.nn.Sequential(
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
-summary(net, (1, 384, 384))
+summary(net, (1, 512, 512))
