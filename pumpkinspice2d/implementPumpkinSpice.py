@@ -36,7 +36,7 @@ net = torch.nn.Sequential(
 
 device = torch.device("cuda:0")
 net = net.to(device)
-num_epochs = 1000
+num_epochs = 50
 step = 0
 tb_logger = SummaryWriter('logs/testRun100221')
 optimizer = torch.optim.Adam(net.parameters())

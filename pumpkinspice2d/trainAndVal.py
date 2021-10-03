@@ -6,7 +6,7 @@ import matplotlib
 import matplotlib.pyplot
 
 device = torch.device("cuda:0")
-numIter = 1000
+numIter = 50
 
 # apply training for one epoch
 def train(
@@ -26,10 +26,10 @@ def train(
     # iterate over the batches of this epoch
     for batch_id in range(numIter):
         x, y = loader.getBatch(10)
-        #print("initial x",x.min(), x.max())
-        #print("initial y",y.min(),y.max())
-        y = y.float()/255
-        #print("float y", y.min(),y.max())
+        # print("initial x",x.min(), x.max())
+        # print("initial y",y.min(),y.max())
+        y = y.float() / 255
+        # print("float y", y.min(),y.max())
         # move input and target to the active device (either cpu or gpu)
         x, y = x.to(device), y.to(device)
 
@@ -38,12 +38,12 @@ def train(
 
         # apply model and calculate loss
         output = model(x)
-        #print("initial output",output.min(), output.max())
+        # print("initial output",output.min(), output.max())
         loss = loss_function(output, y)
         loss.backward()
-        #print("loss at iteration", batch_id, loss.detach().cpu())
+        # print("loss at iteration", batch_id, loss.detach().cpu())
         output = activation(output)
-        #print("output after softmax",output.min(),output.max())
+        # print("output after softmax",output.min(),output.max())
         # backpropagate the loss and adjust the parameters
         optimizer.step()
 
@@ -59,24 +59,19 @@ def train(
                 )
             )
         # log to tensorboard
-        if tb_logger is not None:
-            step = epoch * numIter + batch_id
-            tb_logger.add_scalar(
-                tag="train_loss", scalar_value=loss.item(), global_step=step
+        step = epoch * numIter + batch_id
+        tb_logger.add_scalar(
+            tag="train_loss", scalar_value=loss.item(), global_step=step
+        )
+        # check if we log images in this iteration
+        if step % log_image_interval == 0:
+            tb_logger.add_images(tag="input", img_tensor=x.to("cpu"), global_step=step)
+            tb_logger.add_images(tag="target", img_tensor=y.to("cpu"), global_step=step)
+            tb_logger.add_images(
+                tag="prediction",
+                img_tensor=output.to("cpu").detach(),
+                global_step=step,
             )
-            # check if we log images in this iteration
-            if step % log_image_interval == 0:
-                tb_logger.add_images(
-                    tag="input", img_tensor=x.to("cpu"), global_step=step
-                )
-                tb_logger.add_images(
-                    tag="target", img_tensor=y.to("cpu"), global_step=step
-                )
-                tb_logger.add_images(
-                    tag="prediction",
-                    img_tensor=output.to("cpu").detach(),
-                    global_step=step,
-                )
 
 
 # sorensen dice coefficient implemented in torch
@@ -105,15 +100,18 @@ def validate(model, loader, loss_function, metric, tb_logger, step, activation):
     val_loss = 0
     val_metric = 0
     count = 0
+    valStep = numIter * step
     # disable gradients during validation
     with torch.no_grad():
-
+        xs = []
+        ys = []
+        predictions = []
         # iterate over validation loader and update loss and metric values
         for x, y in loader:
             count += 1
             y = np.expand_dims(y, axis=3)
             transformation = iaa.CropToFixedSize(512, 512)
-            x, y = transformation(images = x, segmentation_maps = y)
+            x, y = transformation(images=x, segmentation_maps=y)
             x = torch.from_numpy(x[0])
             y = torch.from_numpy(y[0])
             x = torch.unsqueeze(x, 0)
@@ -124,29 +122,38 @@ def validate(model, loader, loss_function, metric, tb_logger, step, activation):
             y = y.float() / 255
             x, y = x.to(device), y.to(device)
             prediction = model(x)
-            #matplotlib.pyplot.imsave("prediction"+str(count)+".tiff",prediction.cpu())
+            # matplotlib.pyplot.imsave("prediction"+str(count)+".tiff",prediction.cpu())
             val_loss += loss_function(prediction, y)
             val_metric += metric(prediction, y).item()
+            prediction = activation(prediction)
+            xs.append(x)
+            ys.append(y)
+            predictions.append(prediction)
+            
+    xs = torch.stack(xs, dim=0)
+    xs = torch.squeeze(xs, dim=2)
+    ys = torch.stack(ys, dim=0)
+    ys = torch.squeeze(ys, dim=2)
+    predictions = torch.stack(predictions, dim=0)
+    predictions = torch.squeeze(predictions, dim=2)        
+    tb_logger.add_images(
+        tag="val_input", img_tensor=xs.to("cpu"), global_step=valStep
+    )
+    tb_logger.add_images(
+        tag="val_target", img_tensor=ys.to("cpu"), global_step=valStep
+    )
+    tb_logger.add_images(
+        tag="val_prediction",
+        img_tensor=predictions.to("cpu"),
+        global_step=valStep,
+    )
 
     # normalize loss and metric
     val_loss /= len(loader)
     val_metric /= len(loader)
-    valStep = numIter * step
-    if tb_logger is not None:
-        assert (
-            step is not None
-        ), "Need to know the current step to log validation results"
-        tb_logger.add_scalar(tag="val_loss", scalar_value=val_loss, global_step=valStep)
-        tb_logger.add_scalar(
-            tag="val_metric", scalar_value=val_metric, global_step=valStep
-        )
-        # we always log the last validation images
-        prediction = activation(prediction)
-        tb_logger.add_images(tag="val_input", img_tensor=x.to("cpu"), global_step=valStep)
-        tb_logger.add_images(tag="val_target", img_tensor=y.to("cpu"), global_step=valStep)
-        tb_logger.add_images(
-            tag="val_prediction", img_tensor=prediction.to("cpu"), global_step=valStep
-        )
+
+    tb_logger.add_scalar(tag="val_loss", scalar_value=val_loss, global_step=valStep)
+    tb_logger.add_scalar(tag="val_metric", scalar_value=val_metric, global_step=valStep)
 
     print(
         "\nValidate: Average loss: {:.4f}, Average Metric: {:.4f}\n".format(

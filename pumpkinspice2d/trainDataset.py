@@ -65,12 +65,12 @@ class TrainDataset:
     def transformation(self):
         transformation = iaa.Sequential(
             [
-                iaa.CropToFixedSize(256, 256)
-                #iaa.Fliplr(0.5),
-                #iaa.Sometimes(
-                    #0.99, iaa.ElasticTransformation(alpha=(30, 200), sigma=(8, 12))
-                #),
-                #iaa.Sometimes(0.5, iaa.Affine(rotate=(-90, 90))),
+                iaa.CropToFixedSize(256, 256),
+                iaa.Fliplr(0.5),
+                iaa.Sometimes(
+                    0.7, iaa.ElasticTransformation(alpha=(10,40), sigma=(6,10))
+                ),
+                iaa.Sometimes(0.5, iaa.Affine(rotate=(-90, 90))),
             ]
         )
         return transformation
