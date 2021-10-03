@@ -12,6 +12,7 @@ class TrainDataset:
         self.train_dir = train_dir  # the directory with all the training samples
         self.samples =sorted( os.listdir(train_dir))  # list the samples
         self.gt_dir = gt_dir
+        self.numsamples = len(self.samples)
         self.gtsamples = sorted(os.listdir(gt_dir))
         #  transformations to apply just to inputs
         self.inp_transforms = transforms.Compose(
@@ -64,7 +65,7 @@ class TrainDataset:
     def transformation(self):
         transformation = iaa.Sequential(
             [
-                iaa.CropToFixedSize(512, 512)
+                iaa.CropToFixedSize(256, 256)
                 #iaa.Fliplr(0.5),
                 #iaa.Sometimes(
                     #0.99, iaa.ElasticTransformation(alpha=(30, 200), sigma=(8, 12))
@@ -79,7 +80,7 @@ class TrainDataset:
         batch_images = []
         batch_gt = []
         for i in range(batchSize):
-            temp_image, temp_gt = self[random.randrange(0, 20)]
+            temp_image, temp_gt = self[random.randrange(0, self.numsamples)]
             temp_gt = np.expand_dims(temp_gt, axis=3)
             transformation = self.transformation()
             temp_image, temp_gt = transformation(

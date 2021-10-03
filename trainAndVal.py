@@ -6,7 +6,7 @@ import matplotlib
 import matplotlib.pyplot
 
 device = torch.device("cuda:0")
-numIter = 10
+numIter = 1000
 
 # apply training for one epoch
 def train(
@@ -23,7 +23,6 @@ def train(
 
     # set the model to train mode
     model.train()
- 
     # iterate over the batches of this epoch
     for batch_id in range(numIter):
         x, y = loader.getBatch(10)
