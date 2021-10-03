@@ -6,6 +6,7 @@ from imgaug import augmenters as iaa
 import random
 import torch
 
+
 class TrainDataset:
     def __init__(self, train_dir, gt_dir):
         self.train_dir = train_dir  # the directory with all the training samples
@@ -16,8 +17,8 @@ class TrainDataset:
         self.inp_transforms = transforms.Compose(
             [
                 transforms.Grayscale(),  # some of the images are RGB
-                transforms.ToTensor(),
-                transforms.Normalize([0.5], [0.5]),
+                transforms.ToTensor()
+                #transforms.Normalize([0.5], [0.5]),
             ]
         )
 
@@ -39,26 +40,12 @@ class TrainDataset:
         gt = np.expand_dims(gt, axis=0)
 
         # IAA expects n, w, h, c for segmentation_maps
-        gt = np.expand_dims(gt, axis=3)
+        
 
-        # Define transformation
-        transformation = iaa.Sequential(
-            [
-                iaa.CropToFixedSize(512, 512),
-                iaa.Fliplr(0.5),
-                iaa.Sometimes(0.7, iaa.Dropout(0.1, 0.2)),
-                iaa.Sometimes(
-                    0.99, iaa.ElasticTransformation(alpha=(30, 200), sigma=(8, 12))
-                ),
-                iaa.Sometimes(0.5, iaa.Affine(rotate=(-90, 90))),
-            ]
-        )
-
-        # apply transformation
-        image, gt = transformation(images=image, segmentation_maps=gt)
+        # iaa.Sometimes(0.7, iaa.Dropout(0.1, 0.2)),
 
         # drop the segmentation_maps dimension
-        gt = gt[:,:,:,0]
+        
 
         # apply manual crop
         # xCrop = random.randrange(0, image.shape[1] - 512)
@@ -70,14 +57,37 @@ class TrainDataset:
 
         # if self.transform is not None:
         #    image, gt = self.transform([image, gt])
-        image, gt = torch.tensor(image), torch.tensor(gt)
         return image, gt
+
+        # Define transformation
+
+    def transformation(self):
+        transformation = iaa.Sequential(
+            [
+                iaa.CropToFixedSize(512, 512)
+                #iaa.Fliplr(0.5),
+                #iaa.Sometimes(
+                    #0.99, iaa.ElasticTransformation(alpha=(30, 200), sigma=(8, 12))
+                #),
+                #iaa.Sometimes(0.5, iaa.Affine(rotate=(-90, 90))),
+            ]
+        )
+        return transformation
+
 
     def getBatch(self, batchSize):
         batch_images = []
         batch_gt = []
         for i in range(batchSize):
             temp_image, temp_gt = self[random.randrange(0, 20)]
+            temp_gt = np.expand_dims(temp_gt, axis=3)
+            transformation = self.transformation()
+            temp_image, temp_gt = transformation(
+                images=temp_image, segmentation_maps=temp_gt
+            )
+            temp_gt = temp_gt[:, :, :, 0]
+            
+            temp_image, temp_gt = torch.tensor(temp_image), torch.tensor(temp_gt)
             batch_images.append(temp_image)
             batch_gt.append(temp_gt)
         batch_images = torch.stack(batch_images, dim=0)

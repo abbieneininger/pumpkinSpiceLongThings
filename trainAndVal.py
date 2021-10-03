@@ -1,8 +1,11 @@
 import torch
 import numpy as np
 import torch.nn as nn
+from imgaug import augmenters as iaa
+import matplotlib
+import matplotlib.pyplot
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0")
 
 # apply training for one epoch
 def train(
@@ -18,11 +21,11 @@ def train(
 
     # set the model to train mode
     model.train()
-    numIter = 100
+    numIter = 10
     # iterate over the batches of this epoch
     for batch_id in range(numIter):
         x, y = loader.getBatch(10)
-        y = y.float()
+        y = y.float()/255
         # move input and target to the active device (either cpu or gpu)
         x, y = x.to(device), y.to(device)
 
@@ -33,6 +36,7 @@ def train(
         output = model(x)
         loss = loss_function(output, y)
         loss.backward()
+        print("loss at iteration", batch_id, loss.detach().cpu())
 
         # backpropagate the loss and adjust the parameters
         optimizer.step()
@@ -82,7 +86,7 @@ class DiceCoefficient(nn.Module):
     # computed as (2 *|a b| / (a^2 + b^2))
     def forward(self, prediction, target):
         prediction = prediction > 0.5
-        intersection = np.logical_and(prediction, target).sum()
+        intersection = torch.logical_and(prediction, target).sum()
         numerator = 2 * intersection
         denominator = (prediction.sum()) + (target.sum())
         return numerator / denominator
@@ -95,14 +99,27 @@ def validate(model, loader, loss_function, metric, tb_logger, step):
     # running loss and metric values
     val_loss = 0
     val_metric = 0
-
+    count = 0
     # disable gradients during validation
     with torch.no_grad():
 
         # iterate over validation loader and update loss and metric values
         for x, y in loader:
+            count += 1
+            y = np.expand_dims(y, axis=3)
+            transformation = iaa.CropToFixedSize(512, 512)
+            x, y = transformation(images = x, segmentation_maps = y)
+            x = torch.from_numpy(x[0])
+            y = torch.from_numpy(y[0])
+            x = torch.unsqueeze(x, 0)
+            x = torch.unsqueeze(x, 0)
+            y = torch.unsqueeze(y, 0)
+            y = torch.unsqueeze(y, 0)
+            y = torch.squeeze(y, 4)
+            y = y.float() / 255
             x, y = x.to(device), y.to(device)
             prediction = model(x)
+            matplotlib.pyplot.imsave("prediction"+str(count)+".tiff",prediction.cpu())
             val_loss += loss_function(prediction, y)
             val_metric += metric(prediction, y).item()
 
@@ -119,6 +136,7 @@ def validate(model, loader, loss_function, metric, tb_logger, step):
             tag="val_metric", scalar_value=val_metric, global_step=step
         )
         # we always log the last validation images
+        prediction = nn.Softmax()(prediction)
         tb_logger.add_images(tag="val_input", img_tensor=x.to("cpu"), global_step=step)
         tb_logger.add_images(tag="val_target", img_tensor=y.to("cpu"), global_step=step)
         tb_logger.add_images(
