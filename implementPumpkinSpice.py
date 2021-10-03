@@ -32,11 +32,11 @@ net = torch.nn.Sequential(
 
 device = torch.device("cuda:0")
 net = net.to(device)
-num_epochs = 10
+num_epochs = 5
 step = 0
 tb_logger = SummaryWriter('logs/testRun100221')
 optimizer = torch.optim.Adam(net.parameters())
 while step < num_epochs:
-  train(net, loader, optimizer, loss_fn, step, tb_logger)
+  train(net, loader, optimizer, loss_fn, step, tb_logger, activation)
   step += 1
-  validate(net, loader, loss_fn, DiceCoefficient(), tb_logger, step)
+  validate(net, loader, loss_fn, DiceCoefficient(), tb_logger, step, activation)
