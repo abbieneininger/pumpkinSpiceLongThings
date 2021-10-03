@@ -9,7 +9,11 @@ from torchsummary import summary
 
 TRAIN_DATA_PATH = 'training/training/images/'
 GT_DATA_PATH = 'training/training/1st_manual/'
+VALIDATION_RAW_PATH = 'training/validation/images/'
+VALIDATION_GT_PATH = 'training/validation/1st_manual/'
 loader = TrainDataset(TRAIN_DATA_PATH,GT_DATA_PATH)
+
+validation_loader = TrainDataset(VALIDATION_RAW_PATH, VALIDATION_GT_PATH)
 
 #define unet
 out_channels = 1
@@ -32,11 +36,11 @@ net = torch.nn.Sequential(
 
 device = torch.device("cuda:0")
 net = net.to(device)
-num_epochs = 5
+num_epochs = 1000
 step = 0
 tb_logger = SummaryWriter('logs/testRun100221')
 optimizer = torch.optim.Adam(net.parameters())
 while step < num_epochs:
   train(net, loader, optimizer, loss_fn, step, tb_logger, activation)
   step += 1
-  validate(net, loader, loss_fn, DiceCoefficient(), tb_logger, step, activation)
+  validate(net, validation_loader, loss_fn, DiceCoefficient(), tb_logger, step, activation)
