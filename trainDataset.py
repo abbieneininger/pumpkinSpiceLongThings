@@ -10,9 +10,9 @@ import torch
 class TrainDataset:
     def __init__(self, train_dir, gt_dir):
         self.train_dir = train_dir  # the directory with all the training samples
-        self.samples = os.listdir(train_dir)  # list the samples
+        self.samples =sorted( os.listdir(train_dir))  # list the samples
         self.gt_dir = gt_dir
-        self.gtsamples = os.listdir(gt_dir)
+        self.gtsamples = sorted(os.listdir(gt_dir))
         #  transformations to apply just to inputs
         self.inp_transforms = transforms.Compose(
             [
