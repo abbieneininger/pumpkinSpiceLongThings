@@ -1,0 +1,7 @@
+gunpowder
+imagecodecs
+numpy
+pillow
+imgaug
+tensorboard
+zarr
