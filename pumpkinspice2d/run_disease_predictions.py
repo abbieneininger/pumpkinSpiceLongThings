@@ -8,15 +8,14 @@ from unet_fov import UNet
 import torch.nn as nn
 from torchsummary import summary
 from diseaseLoader import DiseaseLoader
+from PIL import Image
+from matplotlib import cm
+import numpy as np
 
-TRAIN_DATA_PATH = "training/training/images"
-GT_DATA_PATH = "training/training/1st_manual"
-VALIDATION_RAW_PATH = "training/validation/images"
-VALIDATION_GT_PATH = "training/validation/1st_manual"
-loader = TrainDataset(TRAIN_DATA_PATH, GT_DATA_PATH)
-validation_loader = TrainDataset(VALIDATION_RAW_PATH, VALIDATION_GT_PATH)
-DISEASE_DATA_PATH = "retinopathy"
+DISEASE_DATA_PATH = "retinopathy/raw_images"
 disease_loader = DiseaseLoader(DISEASE_DATA_PATH)
+
+checkpoint = "/home/neiningera/DLMBL/pumpkinspice2d/logs/checkPoint_102000"
 
 # define unet
 out_channels = 1
@@ -41,23 +40,23 @@ net = torch.nn.Sequential(
     ),
 )
 
-device = torch.device("cuda:0")
-net = net.to(device)
-num_epochs = 1000
-step = 0
-tb_logger = SummaryWriter("logs/testRun100421")
-optimizer = torch.optim.Adam(net.parameters())
-while step < num_epochs:
-    train(net, loader, optimizer, loss_fn, step, tb_logger, activation)
-    step += 1
-    validate(
-        net,
-        validation_loader,
-        loss_fn,
-        DiceCoefficient(),
-        tb_logger,
-        step,
-        activation,
-        num_epochs,
-    )
-    diseaseModel(net, disease_loader, step, activation, tb_logger)
+def save_pred(pred, name):
+    pred = torch.squeeze(pred, 0)
+    pred = torch.squeeze(pred, 0)
+    im = Image.fromarray(np.uint8(cm.gray(pred.cpu().numpy())*255))
+    im.save(name+".png", "PNG")
+
+net.load_state_dict(torch.load(checkpoint))
+device = torch.device("cuda")
+net.to(device)
+net.eval()
+with torch.no_grad():
+    for idx, x in enumerate(disease_loader):
+        x = torch.from_numpy(x)
+        x = torch.unsqueeze(x, 0)
+        x = x.to(device)
+        prediction = net(x)
+        prediction = activation(prediction)
+        print(x.shape)
+        print(prediction.shape)
+        save_pred(prediction, f"disease_{idx}")

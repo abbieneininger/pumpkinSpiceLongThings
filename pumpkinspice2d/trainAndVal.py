@@ -3,10 +3,10 @@ import numpy as np
 import torch.nn as nn
 from imgaug import augmenters as iaa
 import matplotlib
-import matplotlib.pyplot
+import matplotlib.pyplot as pyplot
 
 device = torch.device("cuda:0")
-numIter = 50
+numIter = 1000
 
 # apply training for one epoch
 def train(
@@ -26,11 +26,7 @@ def train(
     # iterate over the batches of this epoch
     for batch_id in range(numIter):
         x, y = loader.getBatch(10)
-        # print("initial x",x.min(), x.max())
-        # print("initial y",y.min(),y.max())
         y = y.float() / 255
-        # print("float y", y.min(),y.max())
-        # move input and target to the active device (either cpu or gpu)
         x, y = x.to(device), y.to(device)
 
         # zero the gradients for this iteration
@@ -41,12 +37,10 @@ def train(
         # print("initial output",output.min(), output.max())
         loss = loss_function(output, y)
         loss.backward()
-        # print("loss at iteration", batch_id, loss.detach().cpu())
         output = activation(output)
-        # print("output after softmax",output.min(),output.max())
         # backpropagate the loss and adjust the parameters
         optimizer.step()
-
+        step = epoch * numIter + batch_id
         # log to console
         if batch_id % log_interval == 0:
             print(
@@ -58,8 +52,9 @@ def train(
                     loss.item(),
                 )
             )
+            torch.save(model.state_dict(), f"logs/checkPoint_{step}")
         # log to tensorboard
-        step = epoch * numIter + batch_id
+        
         tb_logger.add_scalar(
             tag="train_loss", scalar_value=loss.item(), global_step=step
         )
@@ -93,10 +88,13 @@ class DiceCoefficient(nn.Module):
 
 
 # run validation after training epoch
-def validate(model, loader, loss_function, metric, tb_logger, step, activation):
+def validate(
+    model, loader, loss_function, metric, tb_logger, step, activation, num_epochs
+):
     # set model to eval mode
     model.eval()
     # running loss and metric values
+    finalCount = numIter * num_epochs
     val_loss = 0
     val_metric = 0
     count = 0
@@ -122,26 +120,24 @@ def validate(model, loader, loss_function, metric, tb_logger, step, activation):
             y = y.float() / 255
             x, y = x.to(device), y.to(device)
             prediction = model(x)
-            # matplotlib.pyplot.imsave("prediction"+str(count)+".tiff",prediction.cpu())
             val_loss += loss_function(prediction, y)
             val_metric += metric(prediction, y).item()
             prediction = activation(prediction)
+            if valStep == finalCount-numIter:
+                pyplot.imshow(np.squeeze(prediction.cpu()), cmap = 'gray')
+                pyplot.savefig("valPrediction"+str(count)+".png")
             xs.append(x)
             ys.append(y)
             predictions.append(prediction)
-            
+
     xs = torch.stack(xs, dim=0)
     xs = torch.squeeze(xs, dim=2)
     ys = torch.stack(ys, dim=0)
     ys = torch.squeeze(ys, dim=2)
     predictions = torch.stack(predictions, dim=0)
-    predictions = torch.squeeze(predictions, dim=2)        
-    tb_logger.add_images(
-        tag="val_input", img_tensor=xs.to("cpu"), global_step=valStep
-    )
-    tb_logger.add_images(
-        tag="val_target", img_tensor=ys.to("cpu"), global_step=valStep
-    )
+    predictions = torch.squeeze(predictions, dim=2)
+    tb_logger.add_images(tag="val_input", img_tensor=xs.to("cpu"), global_step=valStep)
+    tb_logger.add_images(tag="val_target", img_tensor=ys.to("cpu"), global_step=valStep)
     tb_logger.add_images(
         tag="val_prediction",
         img_tensor=predictions.to("cpu"),

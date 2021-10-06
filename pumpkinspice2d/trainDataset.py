@@ -39,28 +39,8 @@ class TrainDataset:
         gt = Image.open(gt_path)
         gt = np.array(gt)
         gt = np.expand_dims(gt, axis=0)
-
-        # IAA expects n, w, h, c for segmentation_maps
         
-
-        # iaa.Sometimes(0.7, iaa.Dropout(0.1, 0.2)),
-
-        # drop the segmentation_maps dimension
-        
-
-        # apply manual crop
-        # xCrop = random.randrange(0, image.shape[1] - 512)
-        # yCrop = random.randrange(0, image.shape[2] - 512)
-        # image = image[:, xCrop : xCrop + 512, yCrop : yCrop + 512]
-        # gt = gt[:, xCrop : xCrop + 512, yCrop : yCrop + 512]
-
-        # gt = np.squeeze(gt, axis=3)
-
-        # if self.transform is not None:
-        #    image, gt = self.transform([image, gt])
         return image, gt
-
-        # Define transformation
 
     def transformation(self):
         transformation = iaa.Sequential(
@@ -71,10 +51,12 @@ class TrainDataset:
                     0.7, iaa.ElasticTransformation(alpha=(10,40), sigma=(6,10))
                 ),
                 iaa.Sometimes(0.5, iaa.Affine(rotate=(-90, 90))),
+                iaa.Sometimes(0.5,iaa.GaussianBlur(sigma=(0.0, 3.0))),
+                iaa.Sometimes(0.6, iaa.Add((-40, 40))),
+                iaa.Sometimes(0.6,iaa.AdditiveGaussianNoise(scale=(0, 0.2)))
             ]
         )
         return transformation
-
 
     def getBatch(self, batchSize):
         batch_images = []
